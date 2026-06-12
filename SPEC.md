@@ -35,6 +35,19 @@ A containerised web application for creating classical cryptic crossword puzzles
 - Banned words are never proposed by the algorithm during generation or redesign
 - The ban list is editable from a settings/preferences area
 
+### Word Locking (as built)
+- Any word can be **locked**; locked words are never touched during a redesign
+- Desired words supplied at creation, and replacement words the user names, are locked automatically
+- Locked words are shown with a pale yellow tint on the grid
+- A locked word cannot be rejected/replaced until unlocked
+
+### Rebuild & Undo (as built)
+- **Rebuild** regenerates the entire board with a new grid layout, keeping locked
+  words and their clues (`POST /puzzles/:id/rebuild`)
+- **Undo** reverts the last 5 grid-changing actions (reject / replace / rebuild);
+  implemented client-side as puzzle snapshots, so it does not survive a page reload.
+  Undoing a "reject + ban" also removes the word from the ban list.
+
 ---
 
 ## 3. Clue Authoring
@@ -97,8 +110,10 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
   "instructions": "",                     // optional setter notes shown to solver
 
   // --- App-specific fields (not in Guardian format) ---
+  // Each entry also carries app-specific "annotation" (string) and "locked" (bool).
   "appMeta": {
-    "status": "draft",                    // "draft" | "clues_complete" | "exported"
+    "status": "draft",                    // "draft" | "complete" | "published" — DERIVED, never set by hand:
+                                          // complete = every entry has a clue; published = a PDF has been exported
     "createdAt": "2025-02-08T00:00:00Z",
     "updatedAt": "2025-02-08T12:00:00Z",
     "banListSnapshot": ["WORD1", "WORD2"],
@@ -116,6 +131,18 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 - `separatorLocations` marks hyphens/commas within multi-word answers (e.g. `SCHOOL RUN` → `{",": [6]}`)
 - `group` supports linked clues that span multiple entries (e.g. "1, 14-across")
 - The Guardian `pdf` field is omitted; our app generates its own PDF on demand
+
+### Format provenance — NOT an open standard
+The JSON schema is **derived from the Guardian's internal crossword format**. It is
+publicly visible via their site but undocumented, unversioned, and may change at their
+whim — plus we extend it (`appMeta`, `annotation`, `locked`). Treat it as our own
+app format that happens to be Guardian-compatible for the core fields.
+
+If interoperability with other crossword software is ever needed, the open standard to
+target is **ipuz** (ipuz.org): JSON-based, CC-licensed spec, good cryptic support.
+Alternatives: `.puz` (Across Lite — binary, proprietary, weak for cryptics) and JPZ
+(Crossword Compiler XML). An ipuz exporter was discussed and deliberately deferred
+(2026-06-12); the mapping from our format is straightforward if/when wanted.
 
 ---
 
@@ -181,6 +208,14 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 - Words on the global ban list are excluded at query time
 - User-supplied desired words are checked against UKACD; if a word is not found it is flagged as unrecognised (but the user can override and force-include it)
 
+### Word Frequency Ranking (as built)
+- UKACD itself carries **no frequency/obscurity information**, which produced fills
+  full of crossword-ese (RIELS, AZYMS, OBEAH)
+- Fixed by loading `backend/data/en_full.txt` — the OpenSubtitles-derived frequency
+  list from hermitdave/FrequencyWords (~1.4M ranked words, CC-BY-SA)
+- The fill engine orders candidate words by frequency rank plus a small random jitter;
+  words absent from the frequency list sort last and are effectively avoided
+
 ---
 
 ## 9. Architecture
@@ -209,6 +244,7 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 | PUT | `/puzzles/:id` | Update puzzle (words, clues, metadata) |
 | DELETE | `/puzzles/:id` | Delete puzzle |
 | POST | `/puzzles/:id/reject-word` | Reject a word, optionally suggest replacement |
+| POST | `/puzzles/:id/rebuild` | Regenerate whole grid, keeping locked words + clues |
 | GET | `/puzzles/:id/export/pdf` | Generate and return PDF |
 | GET | `/puzzles/:id/export/json` | Download puzzle JSON |
 | GET | `/ban-list` | Fetch ban list |
@@ -227,6 +263,11 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 - [x] Hosting — local network only, accessed from other devices on the LAN (not localhost)
 - [x] PDF — **WeasyPrint** (Python-native, no headless browser needed, good print CSS support)
 - [x] Ban list — **global** across all puzzles
+- [x] Grid templates — generated lattice family (white iff row or col even, plus
+      symmetric extra blacks) with a validator; sizes 9/11/13/15 only
+- [x] Word quality — frequency-ranked fill via hermitdave/FrequencyWords `en_full.txt`
+- [x] Status — derived automatically: draft → complete → published (no manual toggle)
+- [x] ipuz export — considered, **deferred** (see Format provenance, Section 4)
 
 ---
 
@@ -236,3 +277,4 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 - Collaborative editing
 - Publishing / sharing puzzles publicly
 - Mobile-native app
+- ipuz / .puz / JPZ export (ipuz first when wanted — see Section 4)
