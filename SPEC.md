@@ -167,7 +167,23 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 
 ---
 
-## 8. Architecture
+## 8. Word Dictionary
+
+### Primary Source — UKACD
+- The **UK Advanced Cryptics Dictionary (UKACD)** is the word list used by the crossword generation engine
+- Purpose-built for UK cryptic crossword setters; includes common words, less common words cryptics favour, and a substantial set of proper nouns (places, names, notable figures)
+- Available as a plain text file (~230k entries), one word/phrase per line
+- UK spelling throughout — consistent with the Guardian house style
+- Loaded into memory at backend startup (or indexed in SQLite for fast lookup)
+
+### Usage in the Engine
+- The engine draws from UKACD when searching for words to fill grid slots
+- Words on the global ban list are excluded at query time
+- User-supplied desired words are checked against UKACD; if a word is not found it is flagged as unrecognised (but the user can override and force-include it)
+
+---
+
+## 9. Architecture
 
 ### Stack
 - **Frontend** — React SPA (PWA), served by Nginx
@@ -201,10 +217,11 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 
 ---
 
-## 9. Decisions
+## 10. Decisions
 
 - [x] Guardian JSON schema — confirmed from live API, see Section 4
 - [x] Backend — **Python + FastAPI** (lightweight, excellent library support for constraint solving and PDF generation)
+- [x] Word dictionary — **UKACD** (UK Advanced Cryptics Dictionary), ~230k entries, UK spelling, includes proper nouns
 - [x] Crossword generation algorithm — constraint satisfaction / backtracking (TBD exact library)
 - [x] Authentication — **none** (LAN-only, trusted network)
 - [x] Hosting — local network only, accessed from other devices on the LAN (not localhost)
@@ -213,7 +230,7 @@ The core puzzle object mirrors the Guardian format, with additional fields for a
 
 ---
 
-## 10. Out of Scope (v1)
+## 11. Out of Scope (v1)
 
 - Automatic clue generation (AI-suggested clues)
 - Collaborative editing
