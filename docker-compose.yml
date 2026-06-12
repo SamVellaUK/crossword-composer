@@ -1,0 +1,19 @@
+services:
+  frontend:
+    image: ghcr.io/samvellauk/crossword-composer-frontend:latest
+    build: ./frontend
+    ports:
+      - "8410:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/samvellauk/crossword-composer-backend:latest
+    build: ./backend
+    volumes:
+      - puzzles:/data/puzzles
+    restart: unless-stopped
+
+volumes:
+  puzzles:
